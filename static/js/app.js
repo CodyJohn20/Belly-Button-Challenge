@@ -1,87 +1,85 @@
-let url="https://2u-data-curriculum-team.s3.amazonaws.com/dataviz-classroom/v1.1/14-Interactive-Web-Visualizations/02-Homework/samples.json"
+const url = 'https://2u-data-curriculum-team.s3.amazonaws.com/dataviz-classroom/v1.1/14-Interactive-Web-Visualizations/02-Homework/samples.json'
 
-function dropdownmenu(){
-// Fetch the JSON data and console log it
-d3.json(url).then(function(data) {
-    console.log(data);
-let names=data.names
-let dropdownMenu = d3.select("#selDataset");
-names.forEach((sample) => {
-    dropdownMenu
-        .append("option")
-        .text(sample)
-        .property("value", sample);
-});
-datatable(names[0])
-chart(names[0])
-  });
-}
-dropdownmenu()
-function datatable(id_){
-    // Fetch the JSON data and console log it
-    d3.json(url).then(function(data) {
-        console.log(data);
-    let metadata=data.metadata
-    let MetaArray = metadata.filter(number => number.id == id_)[0];
+// Demographic Info
+function panelInfo(id) {
+    d3.json(url).then(function (data) {
+        let sampleData = data;
+        let metadata = sampleData.metadata;
+        let identifier = metadata.filter(sample =>
+            sample.id.toString() === id)[0];
+        let panel = d3.select('#sample-metadata');
+        panel.html('');
+        Object.entries(identifier).forEach(([key, value]) => {
+            panel.append('h6').text(`${key}: ${value}`);
+        })
+    })
+};
 
-    let datatag = d3.select("#sample-metadata");
-datatag.html("")
-
-    Object.entries(MetaArray).forEach(entry => {
-        const [key, value] = entry;
-        console.log(key, value);
-        datatag
-        .append("h5")
-        .text(`${key}: ${value}`)
-
-      });
-    
-      });
-    }
-
-    function optionChanged(id_){
-        datatable(id_)  
-        chart(id_)
-    }
-    function chart(id_){
-        // Fetch the JSON data and console log it
-        d3.json(url).then(function(data) {
-            console.log(data);
-        let samples=data.samples
-        let SamplesArray = samples.filter(number => number.id == id_)[0];
-
-        let otu_ids =SamplesArray.otu_ids
-
-let sample_values =SamplesArray.sample_values
-
-
-
- let otu_labels =SamplesArray.otu_labels
-
-
-    
-        var bubbledata = [{
-            x:otu_ids ,
-            y: sample_values,
-            text:otu_labels,
+//Plots
+function Plots(id) {
+    d3.json(url).then(function (data) {
+        let sampleData = data;
+        let samples = sampleData.samples;
+        let identifier = samples.filter(sample => sample.id === id);
+        let filtered = identifier[0];
+        let OTUvalues = filtered.sample_values.slice(0, 10).reverse();
+        let OTUids = filtered.otu_ids.slice(0, 10).reverse();
+        let labels = filtered.otu_labels.slice(0, 10).reverse();
+        let barTrace = {
+            x: OTUvalues,
+            y: OTUids.map(object => 'OTU ' + object),
+            name: labels,
+            type: 'bar',
+            orientation: 'h'
+        };
+        let barLayout = {
+            title: `Top 10 OTUs for Subject ${id}`,
+            xaxis: { title: 'Sample Values' },
+            yaxis: { title: 'OTU ID' }
+        };
+        let barData = [barTrace];
+        Plotly.newPlot('bar', barData, barLayout);
+        let bubbleTrace = {
+            x: filtered.otu_ids,
+            y: filtered.sample_values,
             mode: 'markers',
             marker: {
-              color: otu_ids,
-              colorscale:"Earth" ,
-              size: sample_values
-            }
-          }];
-          
-          
-          
-          var bubblelayout = {
-            title: 'Bubble Chart',
-            showlegend: false,
-            
-          };
-          
-          Plotly.newPlot('bubble', bubbledata, bubblelayout);
-          
-        
-          });
-        }
+                size: filtered.sample_values,
+                color: filtered.otu_ids,
+                colorscale: 'Earth'
+            },
+            text: filtered.otu_labels,
+        };
+        let bubbleData = [bubbleTrace];
+        let bubbleLayout = {
+            title: `OTUs for Subject ${id}`,
+            xaxis: { title: 'OTU ID' },
+            yaxis: { title: 'Sample Values' }
+        };
+        Plotly.newPlot('bubble', bubbleData, bubbleLayout);
+    })
+};
+
+//Build new upon ID change
+function optionChanged(id) {
+    Plots(id);
+    panelInfo(id);
+};
+
+//Test Subject Dropdown and initial function
+function init() {
+    let dropDown = d3.select('#selDataset');
+    let id = dropDown.property('value');
+    d3.json(url).then(function (data) {
+        sampleData = data;
+        let names = sampleData.names;
+        let samples = sampleData.samples;
+        Object.values(names).forEach(value => {
+            dropDown.append('option').text(value);
+        })
+        panelInfo(names[0]);
+        Plots(names[0])
+    })
+};
+
+init();
